@@ -1,0 +1,16 @@
+{
+  "model": "optuna-features-v2",
+  "feature_count": 69,
+  "model_sha256": "290be2ba6422dc4944d4d991011f2b8e71d78cd0fcb7f0edddceb5adfaffea86",
+  "submission_sha256": "9dcb3300678ebe63b5ada4ffba482bc15d62bceab98a4dcc2ad2da9dc6e6a770",
+  "rows": 151,
+  "separator": ";",
+  "columns": [
+    "sample_id",
+    "prediction"
+  ],
+  "prediction_formula": "cur_dev_s + 0.75 * (model.predict(X) - cur_dev_s)",
+  "source_artifact": "submission/submission.csv (exported from the final private release)",
+  "live_model_predictions_verified": true,
+  "uploaded_to_platform": false
+}

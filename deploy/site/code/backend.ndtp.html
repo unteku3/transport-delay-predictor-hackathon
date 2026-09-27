@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Python: module backend.ndtp</title>
+</head><body>
+
+<table class="heading">
+<tr class="heading-text decor">
+<td class="title">&nbsp;<br><strong class="title"><a href="backend.html" class="white">backend</a>.ndtp</strong></td>
+<td class="extra"><a href=".">index</a><br><a href="https://github.com/unteku3/transport-delay-predictor-hackathon/blob/main/backend/ndtp.py">backend/ndtp.py</a></td></tr></table>
+    <p><span class="code">NDTP&nbsp;6.2&nbsp;NPL/NPH&nbsp;framing&nbsp;and&nbsp;Nav00,&nbsp;with&nbsp;an&nbsp;explicit&nbsp;private&nbsp;replay&nbsp;channel.<br>
+&nbsp;<br>
+Service&nbsp;65500&nbsp;carries&nbsp;JSON&nbsp;simulator&nbsp;metadata&nbsp;(not&nbsp;physical&nbsp;sensor&nbsp;cells).&nbsp;The<br>
+packet&nbsp;metadata&nbsp;precedes&nbsp;its&nbsp;standard&nbsp;Nav00&nbsp;frame&nbsp;and&nbsp;preserves&nbsp;CSV&nbsp;precision,<br>
+missing&nbsp;fields,&nbsp;packet&nbsp;ID&nbsp;and&nbsp;receive/event&nbsp;clocks,&nbsp;which&nbsp;Nav00&nbsp;alone&nbsp;cannot.</span></p>
+<p>
+<table class="section">
+<tr class="decor pkg-content-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Modules</strong></td></tr>
+
+<tr><td class="decor pkg-content-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><table><tr><td class="multicolumn"><a href="asyncio.html">asyncio</a><br>
+</td><td class="multicolumn"><a href="json.html">json</a><br>
+</td><td class="multicolumn"><a href="struct.html">struct</a><br>
+</td><td class="multicolumn"></td></tr></table></td></tr></table><p>
+<table class="section">
+<tr class="decor functions-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Functions</strong></td></tr>
+
+<tr><td class="decor functions-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><dl><dt><a name="-control"><strong>control</strong></a>(value, request=0)</dt></dl>
+ <dl><dt><a name="-crc16"><strong>crc16</strong></a>(data)</dt></dl>
+ <dl><dt><a name="-decode_navigation"><strong>decode_navigation</strong></a>(body, peer, request, receive)</dt></dl>
+ <dl><dt><a name="-frame"><strong>frame</strong></a>(service, kind, body, peer=0, request=0)</dt></dl>
+ <dl><dt><a name="-handshake"><strong>handshake</strong></a>(peer)</dt></dl>
+ <dl><dt><a name="-navigation"><strong>navigation</strong></a>(packet)</dt></dl>
+ <dl><dt>async <a name="-read_frame"><strong>read_frame</strong></a>(reader)</dt></dl>
+</td></tr></table><p>
+<table class="section">
+<tr class="decor data-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Data</strong></td></tr>
+
+<tr><td class="decor data-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><strong>MAX_BODY</strong> = 65525<br>
+<strong>NAV</strong> = &lt;_struct.Struct object&gt;<br>
+<strong>NPH</strong> = &lt;_struct.Struct object&gt;<br>
+<strong>NPL</strong> = &lt;_struct.Struct object&gt;<br>
+<strong>REPLAY_SERVICE</strong> = 65500</td></tr></table>
+</body></html>

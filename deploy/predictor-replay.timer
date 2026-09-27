@@ -1,0 +1,8 @@
+[Unit]
+Description=Check finite demo replay every minute
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=60s
+Unit=predictor-replay.service
+[Install]
+WantedBy=timers.target

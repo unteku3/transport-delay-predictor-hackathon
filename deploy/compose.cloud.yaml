@@ -1,0 +1,32 @@
+services:
+  ml:
+    environment:
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    logging: &logs
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  backend:
+    logging: *logs
+  emulator:
+    logging: *logs
+  dashboard:
+    volumes:
+      - ./deploy/site:/usr/share/nginx/html/reference:ro
+    logging: *logs
+  edge:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ['80:80', '443:443']
+    environment:
+      DEMO_HOST: ${DEMO_HOST:?Set DEMO_HOST in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - dashboard
+    logging: *logs
+volumes:
+  caddy_data:
+  caddy_config:

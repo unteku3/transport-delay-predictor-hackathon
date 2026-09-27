@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Python: module cleaning.telemetry</title>
+</head><body>
+
+<table class="heading">
+<tr class="heading-text decor">
+<td class="title">&nbsp;<br><strong class="title"><a href="cleaning.html" class="white">cleaning</a>.telemetry</strong></td>
+<td class="extra"><a href=".">index</a><br><a href="https://github.com/unteku3/transport-delay-predictor-hackathon/blob/main/cleaning/telemetry.py">cleaning/telemetry.py</a></td></tr></table>
+    <p><span class="code">One&nbsp;causal&nbsp;state&nbsp;machine&nbsp;for&nbsp;stream&nbsp;and&nbsp;offline&nbsp;replay.</span></p>
+<p>
+<table class="section">
+<tr class="decor pkg-content-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Modules</strong></td></tr>
+
+<tr><td class="decor pkg-content-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><table><tr><td class="multicolumn"><a href="heapq.html">heapq</a><br>
+</td><td class="multicolumn"><a href="math.html">math</a><br>
+</td><td class="multicolumn"></td><td class="multicolumn"></td></tr></table></td></tr></table><p>
+<table class="section">
+<tr class="decor index-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Classes</strong></td></tr>
+
+<tr><td class="decor index-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><dl>
+<dt class="heading-text"><a href="builtins.html#object">builtins.object</a>
+</dt><dd>
+<dl>
+<dt class="heading-text"><a href="cleaning.telemetry.html#Cleaner">Cleaner</a>
+</dt></dl>
+</dd>
+</dl>
+ <p>
+<table class="section">
+<tr class="decor title-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><a name="Cleaner">class <strong>Cleaner</strong></a>(<a href="builtins.html#object">builtins.object</a>)</td></tr>
+
+<tr><td class="decor title-decor" rowspan=2><span class="code">&nbsp;&nbsp;&nbsp;</span></td>
+<td class="decor title-decor" colspan=2><span class="code"><a href="#Cleaner">Cleaner</a>(config:&nbsp;'Config'&nbsp;=&nbsp;Config(filter_speed=False,&nbsp;quarantine_gps=False,&nbsp;detect_stops=False,&nbsp;high_speed_kmh=115.0,&nbsp;discrepancy_kmh=60.0,&nbsp;jump_speed_kmh=130.0,&nbsp;jump_slack_m=100.0,&nbsp;gps_compare_max_s=120.0,&nbsp;recovery_gap_s=300.0,&nbsp;candidate_span_s=30.0,&nbsp;candidate_progress_m=30.0,&nbsp;window_s=300.0,&nbsp;position_ttl_s=300.0,&nbsp;speed_ttl_s=120.0,&nbsp;heading_ttl_s=60.0,&nbsp;heading_min_speed=5.0,&nbsp;stop_window_s=60.0,&nbsp;stop_min_span_s=45.0,&nbsp;stop_max_gap_s=30.0,&nbsp;stop_radius_m=15.0,&nbsp;stop_progress_m=6.0,&nbsp;stop_exit_m=20.0,&nbsp;stop_exit_speed=5.0,&nbsp;stop_fresh_s=45.0,&nbsp;max_history=512,&nbsp;dedup_capacity=1024,&nbsp;max_pending_per_vehicle=128))<br>
+&nbsp;<br>
+Monotone&nbsp;clock.&nbsp;Call&nbsp;ingest&nbsp;in&nbsp;(receive_time,&nbsp;seq)&nbsp;order&nbsp;and&nbsp;advance&nbsp;at&nbsp;T.<br>
+&nbsp;<br>
+Neither&nbsp;querying&nbsp;the&nbsp;past&nbsp;nor&nbsp;ingesting&nbsp;a&nbsp;receipt&nbsp;behind&nbsp;the&nbsp;clock&nbsp;is&nbsp;allowed.<br>
+Future-dated&nbsp;measurements&nbsp;are&nbsp;held&nbsp;in&nbsp;a&nbsp;bounded&nbsp;per-vehicle&nbsp;heap.&nbsp;The&nbsp;receipt<br>
+itself&nbsp;updates&nbsp;message&nbsp;age&nbsp;immediately.&nbsp;Invalid&nbsp;receive&nbsp;times&nbsp;are&nbsp;audit-only.<br>&nbsp;</span></td></tr>
+<tr><td>&nbsp;</td>
+<td class="singlecolumn">Methods defined here:<br>
+<dl><dt><a name="Cleaner-__init__"><strong>__init__</strong></a>(self, config: 'Config' = Config(filter_speed=False, quarantine_gps=False, detect_stops=False, high_speed_kmh=115.0, discrepancy_kmh=60.0, jump_speed_kmh=130.0, jump_slack_m=100.0, gps_compare_max_s=120.0, recovery_gap_s=300.0, candidate_span_s=30.0, candidate_progress_m=30.0, window_s=300.0, position_ttl_s=300.0, speed_ttl_s=120.0, heading_ttl_s=60.0, heading_min_speed=5.0, stop_window_s=60.0, stop_min_span_s=45.0, stop_max_gap_s=30.0, stop_radius_m=15.0, stop_progress_m=6.0, stop_exit_m=20.0, stop_exit_speed=5.0, stop_fresh_s=45.0, max_history=512, dedup_capacity=1024, max_pending_per_vehicle=128))</dt><dd><span class="code">Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(type(self))&nbsp;for&nbsp;accurate&nbsp;signature.</span></dd></dl>
+
+<dl><dt><a name="Cleaner-advance"><strong>advance</strong></a>(self, now: 'float') -&gt; 'list[Decision]'</dt><dd><span class="code">Release&nbsp;available&nbsp;future-dated&nbsp;measurements&nbsp;before&nbsp;returning&nbsp;state&nbsp;at&nbsp;now.</span></dd></dl>
+
+<dl><dt><a name="Cleaner-ingest"><strong>ingest</strong></a>(self, packet: 'Packet') -&gt; 'list[Decision]'</dt><dd><span class="code">Receive&nbsp;one&nbsp;decoded&nbsp;packet;&nbsp;output&nbsp;only&nbsp;final&nbsp;decisions,&nbsp;never&nbsp;future&nbsp;values.</span></dd></dl>
+
+<dl><dt><a name="Cleaner-state"><strong>state</strong></a>(self, tr_id: 'str') -&gt; 'VehicleState'</dt></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><span class="code">dictionary&nbsp;for&nbsp;instance&nbsp;variables</span></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><span class="code">list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object</span></dd>
+</dl>
+</td></tr></table></td></tr></table><p>
+<table class="section">
+<tr class="decor functions-decor heading-text">
+<td class="section-title" colspan=3>&nbsp;<br><strong class="bigsection">Functions</strong></td></tr>
+
+<tr><td class="decor functions-decor"><span class="code">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></td><td>&nbsp;</td>
+<td class="singlecolumn"><dl><dt><a name="-angular_difference"><strong>angular_difference</strong></a>(a: 'float', b: 'float') -&gt; 'float'</dt><dd><span class="code">Unsigned&nbsp;circular&nbsp;distance&nbsp;in&nbsp;degrees.</span></dd></dl>
+ <dl><dt><a name="-distance_m"><strong>distance_m</strong></a>(lon1: 'float', lat1: 'float', lon2: 'float', lat2: 'float') -&gt; 'float'</dt><dd><span class="code">Great-circle&nbsp;lower&nbsp;bound&nbsp;on&nbsp;travelled&nbsp;distance,&nbsp;in&nbsp;metres.</span></dd></dl>
+ <dl><dt><a name="-separation"><strong>separation</strong></a>(a: 'Position', b: 'Position') -&gt; 'float'</dt></dl>
+</td></tr></table>
+</body></html>

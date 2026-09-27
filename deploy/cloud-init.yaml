@@ -1,0 +1,11 @@
+#cloud-config
+package_update: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - docker-buildx
+  - ca-certificates
+  - curl
+runcmd:
+  - [systemctl, enable, --now, docker]
+  - [mkdir, -p, /opt/predictor, /srv/predictor-data]

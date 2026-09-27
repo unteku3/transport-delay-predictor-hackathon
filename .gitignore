@@ -1,0 +1,34 @@
+.venv*/
+__pycache__/
+.pytest_cache/
+.mplconfig/
+catboost_info/
+*.pyc
+.DS_Store
+artifacts/ml/
+.kaggle-run/
+
+# Local alternative-ensemble weights and superseded submission backups.
+outputs/context_ensemble_v1/*.joblib
+outputs/context_ensemble_v1/*.cbm
+outputs/before-37-*/
+
+# Organizer data and generated local artifacts (never delete the local originals).
+/train/
+/test/
+/validate/
+/labels/
+/outputs/
+/artifacts/
+/release/
+*.tar
+/sample_submission.csv
+/submissions*.csv
+/submission.csv
+/submission.manifest.json
+/eda.ipynb
+/reports/*
+.env
+.env.*
+!.env.example
+/docs/_build/

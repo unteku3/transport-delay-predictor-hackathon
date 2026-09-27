@@ -1,0 +1,6 @@
+{$DEMO_HOST} {
+    encode gzip
+    @control path /api/demo/control
+    respond @control "Replay controls are available only to the operator" 403
+    reverse_proxy dashboard:80
+}

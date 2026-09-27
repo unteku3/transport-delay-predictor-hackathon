@@ -1,0 +1,45 @@
+{
+  "metrics": {
+    "original_candidates": {
+      "tuned": {
+        "n": 1141,
+        "model_mae_s": 76.2319358086868,
+        "hint_mae_s": 86.8378615249781
+      },
+      "reference": {
+        "n": 1141,
+        "model_mae_s": 78.79444842433739,
+        "hint_mae_s": 86.8378615249781
+      }
+    },
+    "all_rows": {
+      "tuned": {
+        "n": 4346,
+        "model_mae_s": 80.94828332723193,
+        "hint_mae_s": 92.55407271053842
+      },
+      "reference": {
+        "n": 4346,
+        "model_mae_s": 83.35558036710624,
+        "hint_mae_s": 92.55407271053842
+      }
+    },
+    "original_large_delay": {
+      "tuned": {
+        "n": 56,
+        "model_mae_s": 226.499421073756,
+        "hint_mae_s": 160.64285714285714
+      },
+      "reference": {
+        "n": 56,
+        "model_mae_s": 232.77224939612168,
+        "hint_mae_s": 160.64285714285714
+      }
+    }
+  },
+  "paired_family_bootstrap_delta_ci95_s": [
+    -4.902607467019846,
+    -0.6129624000200978
+  ],
+  "note": "Bootstrap on the same development day; does not include new-day variation or earlier human feature-design choices."
+}

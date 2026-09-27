@@ -1,0 +1,41 @@
+{
+  "model": "optuna-features-v2",
+  "samples": 100,
+  "warmups": 5,
+  "batch_size": 1,
+  "scope": "HTTP ML inference, artificial schema-valid input; replay running concurrently; not a throughput limit",
+  "latency_ms": {
+    "p50": 23.561115999939375,
+    "p95": 39.260636999983944,
+    "max": 64.71053100005975
+  },
+  "replay": {
+    "packets_received": 800,
+    "protocol_errors": 0,
+    "discarded_transport_packets": 0,
+    "throughput_packets_sec": 11.774752193217456,
+    "queue_size": 0,
+    "inference_latency_ms": 21.741418000033264,
+    "inference_failures": 0,
+    "evaluated_predictions": 0,
+    "forecast_mae_min": null,
+    "alert_precision": null,
+    "evaluated_alerts": 0,
+    "mean_lead_time_min": null,
+    "model_mae_min": null,
+    "fallback_mae_min": null,
+    "stream": {
+      "status": "online",
+      "stream_connected": true,
+      "ml_available": true,
+      "virtual_time": "2026-01-06T07:04:43.231914282",
+      "speed": 10.0,
+      "last_packet_at": "2026-01-06T07:04:41.512753963",
+      "stream_age_wall_sec": 0.11349573699999382,
+      "time_basis": "naive dataset wall clock; no timezone assigned",
+      "replay_finished": false,
+      "detail": "NDTP replay + Optuna features v2"
+    },
+    "evaluation_scope": "Development replay, frozen offline fit; not held-out online accuracy"
+  }
+}

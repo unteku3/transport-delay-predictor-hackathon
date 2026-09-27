@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="./vendor/ol.css">
+<script src="./vendor/ol.js"></script>
+<script src="./support.js"></script>
+
+<style>
+.dispatch-map{position:relative;min-height:300px;width:100%;isolation:isolate;background:#1b2731}
+.map-host{height:100%;width:100%;z-index:0;background:#dae2e4}
+.map-dark .street-tiles{filter:invert(1) hue-rotate(180deg) saturate(.45) brightness(.85) contrast(.88)}
+.map-dark .map-host{background:#1b2731}
+.map-toolbar{position:absolute;z-index:500;left:16px;top:14px;right:16px;display:flex;gap:6px;align-items:center;pointer-events:none}
+.map-toolbar>*{pointer-events:auto}.map-heading{margin-right:auto;padding:9px 12px;background:#101a25ed;border:1px solid #405264;border-radius:6px;font:600 11px system-ui;letter-spacing:.09em;color:#dce7ef;box-shadow:0 2px 12px #0004}
+.map-toolbar button{padding:8px 10px;border:1px solid #405264;border-radius:6px;color:#e3edf6;background:#101a25ed;font:500 12px system-ui;cursor:pointer;box-shadow:0 2px 12px #0004}
+.map-toolbar button:hover{background:#28435a}.map-caption{position:absolute;z-index:500;left:16px;top:60px;padding:5px 8px;background:#101a25d9;color:#bacbd7;border-radius:4px;font:10px system-ui;pointer-events:none}
+.map-key{position:absolute;z-index:500;left:16px;bottom:23px;display:flex;gap:15px;padding:9px 12px;background:#101a25ed;border:1px solid #405264;border-radius:6px;color:#bbd4e4;font:11px system-ui;pointer-events:none}
+.vehicle-pin{position:relative;display:block;width:26px;height:26px;border:2px solid #f4faff;background:var(--vehicle-color);border-radius:50%;box-shadow:0 2px 7px #000a,0 0 0 6px color-mix(in srgb,var(--vehicle-color) 20%,transparent)}
+.vehicle-pin i{position:absolute;inset:-9px;transform:rotate(var(--heading))}.vehicle-pin i:before{content:'';position:absolute;left:15px;top:-1px;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:7px solid var(--vehicle-color)}
+.vehicle-pin b{display:block;text-align:center;color:#102030;font:bold 19px/22px system-ui}
+.vehicle-marker{position:relative;padding:0;border:0;background:none;cursor:pointer;width:30px;height:30px}.vehicle-marker:focus-visible{outline:2px solid #fff;outline-offset:5px}
+.vehicle-label,.map-tooltip{background:#101a25ed;color:#f0f7fc;border:1px solid #536575;box-shadow:0 2px 6px #0005;border-radius:4px;font:600 11px system-ui;padding:5px 7px;white-space:nowrap}
+.vehicle-label{display:none;position:absolute;left:38px;top:0;pointer-events:none}.vehicle-marker.show-label .vehicle-label,.vehicle-marker:hover .vehicle-label,.vehicle-marker:focus-visible .vehicle-label{display:block}
+.ol-attribution{font:10px system-ui;bottom:0;right:0}.ol-scale-line{left:auto;right:12px;bottom:24px;background:#101a25dc}.ol-scale-line-inner{color:#dae7f0;border-color:#7b94a6}.map-tooltip{pointer-events:none}
+@media(max-width:1100px){.map-heading{display:none}.map-key{gap:8px;font-size:10px}.map-caption{max-width:80%}}
+</style>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+html,body{margin:0;height:100%;background:#0B0D10;}
+*{box-sizing:border-box}
+a{color:#5AA2F0;text-decoration:none} a:hover{text-decoration:underline}
+input,select,button{font:inherit}
+@keyframes skel{0%,100%{opacity:.5}50%{opacity:1}}
+::-webkit-scrollbar{width:8px;height:8px} ::-webkit-scrollbar-thumb{background:rgba(128,136,148,.35);border-radius:4px} ::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+<div style="{{ rootVars }}">
+<div style="height:100%;width:100%;position:relative;display:flex;flex-direction:column;background:var(--bg,#0B0D10);color:var(--tx,#E6E8EB);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px;overflow:hidden">
+
+<header style="height:48px;flex:none;display:flex;align-items:center;gap:16px;padding:0 12px 0 16px;border-bottom:1px solid var(--ln,#232830);background:var(--p1,#111418);white-space:nowrap">
+  <div style="display:flex;align-items:center;gap:10px;flex:none">
+    <div style="width:22px;height:22px;border:1.5px solid var(--b,#5AA2F0);border-radius:4px;display:grid;place-items:center"><div style="width:8px;height:8px;background:var(--b,#5AA2F0);border-radius:1px"></div></div>
+    <div style="font-weight:600;font-size:15px">Предиктор</div>
+  </div>
+  <nav style="display:flex;align-self:stretch;gap:4px;flex:none">
+    <sc-for list="{{ tabs }}" as="tb" hint-placeholder-count="2">
+      <button onClick="{{ tb.onClick }}" style="background:none;border:none;border-bottom:2px solid {{ tb.bd }};color:{{ tb.col }};padding:0 12px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap">{{ tb.label }}</button>
+    </sc-for>
+  </nav>
+  <div style="flex:1;min-width:0"></div>
+  <button onClick="{{ onTele }}" title="Демо: переключить состояние потока" style="flex:none;display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;border:1px solid {{ st.bd }};border-radius:5px;background:{{ st.bg }};color:var(--tx,#E6E8EB);cursor:pointer;white-space:nowrap">
+    <span style="width:8px;height:8px;border-radius:50%;background:{{ st.dot }}"></span>
+    <span style="font-weight:500">{{ st.text }}</span>
+    <span style="color:var(--t2,#A0A8B3);font-family:'IBM Plex Mono',monospace;font-size:12px">{{ st.sub }}</span>
+  </button>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;line-height:1.1;flex:none">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:500;font-variant-numeric:tabular-nums">{{ clock }}</span>
+    <span style="font-size:11px;color:var(--t3,#6E7682)">{{ dateLabel }}</span>
+  </div>
+  <div style="position:relative;flex:none;padding-left:12px;border-left:1px solid var(--ln,#232830)">
+    <button onClick="{{ toggleMenu }}" style="display:flex;align-items:center;gap:10px;height:38px;padding:0 8px 0 4px;border:1px solid {{ menuBd }};border-radius:6px;background:transparent;color:var(--tx,#E6E8EB);cursor:pointer;white-space:nowrap" style-hover="border-color:var(--ln2,#313843)">
+      <span style="width:28px;height:28px;border-radius:50%;background:var(--p2,#181C22);border:1px solid var(--ln2,#313843);display:grid;place-items:center;font-size:11px;font-weight:600;color:var(--t2,#A0A8B3)">АК</span>
+      <span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2"><span style="font-size:12px">Оператор</span><span style="font-size:11px;color:var(--t3,#6E7682)">{{ roleLabel }}</span></span>
+      <span style="font-size:10px;color:var(--t3,#6E7682)">▾</span>
+    </button>
+    <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;right:0;top:44px;width:240px;z-index:60;background:var(--p1,#111418);border:1px solid var(--ln2,#313843);border-radius:6px;padding:6px;display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,.3)">
+        <button onClick="{{ toggleTheme }}" style="display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border:none;border-radius:4px;background:transparent;color:var(--tx,#E6E8EB);cursor:pointer;text-align:left" style-hover="background:var(--p2,#181C22)"><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid var(--t2,#A0A8B3);background:linear-gradient(90deg,var(--t2,#A0A8B3) 50%,transparent 50%)"></span>{{ themeLabel }}</button>
+        <div style="height:1px;background:var(--ln,#232830);margin:4px 0"></div>
+        <div style="padding:6px 10px;font-size:12px;color:var(--t3,#6E7682)">Исторический replay · без отправки команд</div>
+      </div>
+    </sc-if>
+  </div>
+</header>
+
+<sc-if value="{{ degraded }}" hint-placeholder-val="{{ false }}">
+<div style="flex:none;display:flex;align-items:center;gap:12px;padding:9px 16px;background:var(--ys,rgba(224,176,64,.14));border-bottom:1px solid var(--y,#E0B040);font-size:13px;white-space:nowrap;overflow:hidden">
+  <span style="flex:none;width:20px;height:20px;border-radius:3px;background:var(--y,#E0B040);color:var(--ink,#0B0D10);display:grid;place-items:center;font-weight:700;font-size:13px">!</span>
+  <span style="overflow:hidden;text-overflow:ellipsis;min-width:0"><b style="font-weight:600">Система работает с ограничениями.</b> {{ statusDetail }}</span>
+  <div style="flex:1"></div>
+  <span style="flex:none;color:var(--t2,#A0A8B3);font-family:'IBM Plex Mono',monospace;font-size:12px">восстановление автоматически</span>
+</div>
+</sc-if>
+
+<sc-if value="{{ showSkeleton }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;min-height:0;display:grid;grid-template-rows:92px minmax(0,1fr)">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1.5fr 1fr 1fr;border-bottom:1px solid var(--ln,#232830);background:var(--p1,#111418)">
+    <sc-for list="{{ skel5 }}" as="s" hint-placeholder-count="5">
+      <div style="padding:14px 18px;display:flex;flex-direction:column;gap:10px;border-right:1px solid var(--ln,#232830)">
+        <div style="width:45%;height:10px;border-radius:3px;background:var(--p2,#181C22);animation:skel 1.4s ease-in-out infinite"></div>
+        <div style="width:60%;height:28px;border-radius:4px;background:var(--p2,#181C22);animation:skel 1.4s ease-in-out infinite"></div>
+      </div>
+    </sc-for>
+  </div>
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) 420px;min-height:0">
+    <div style="padding:12px;display:grid;grid-template-rows:30px minmax(0,1fr) 96px;gap:12px">
+      <div style="width:50%;border-radius:4px;background:var(--p2,#181C22);animation:skel 1.4s ease-in-out infinite"></div>
+      <div style="border-radius:6px;background:var(--p1,#111418);border:1px solid var(--ln,#232830);display:grid;place-items:center;color:var(--t3,#6E7682)">Загружаем данные backend…</div>
+      <div style="border-radius:6px;background:var(--p2,#181C22);animation:skel 1.4s ease-in-out infinite"></div>
+    </div>
+    <div style="border-left:1px solid var(--ln,#232830);background:var(--p1,#111418);padding:14px;display:flex;flex-direction:column;gap:12px">
+      <sc-for list="{{ skel5 }}" as="s" hint-placeholder-count="5"><div style="height:120px;border-radius:5px;background:var(--p2,#181C22);animation:skel 1.4s ease-in-out infinite"></div></sc-for>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showOverview }}" hint-placeholder-val="{{ true }}">
+<div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">
+  <div data-screen-label="KPI" style="position:sticky;top:0;z-index:5;flex:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr);border-bottom:1px solid var(--ln,#232830);background:var(--p1,#111418);white-space:nowrap">
+    <div style="padding:12px 18px;border-right:1px solid var(--ln,#232830);display:flex;flex-direction:column;gap:6px;min-width:0">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--t2,#A0A8B3)">ТС на линии<sc-if value="{{ stale }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:1px 5px;border:1px solid var(--y,#E0B040);color:var(--y,#E0B040);border-radius:3px">устарело</span></sc-if></div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:500;line-height:1;color:{{ kvCol }}">{{ kpi.total }}</div>
+      <div style="font-size:12px;color:var(--t3,#6E7682)">{{ kpi.fresh }} со свежими сообщениями</div>
+    </div>
+    <div style="padding:12px 18px;border-right:1px solid var(--ln,#232830);display:flex;flex-direction:column;gap:6px;min-width:0">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--t2,#A0A8B3)">В графике сейчас<sc-if value="{{ stale }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:1px 5px;border:1px solid var(--y,#E0B040);color:var(--y,#E0B040);border-radius:3px">устарело</span></sc-if></div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:500;line-height:1;color:{{ kvCol }}">{{ kpi.sched }}</div>
+      <div style="font-size:12px;color:var(--t3,#6E7682);overflow:hidden;text-overflow:ellipsis">{{ kpi.lateNow }}</div>
+    </div>
+    <div style="padding:12px 18px;border-right:1px solid var(--ln,#232830);background:var(--bs,rgba(90,162,240,.13));display:flex;flex-direction:column;gap:6px;min-width:0">
+      <div style="font-size:12px;color:var(--b,#5AA2F0);font-weight:600">ETA следующей остановки</div>
+      <div style="display:flex;align-items:center;gap:18px">
+        <div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:36px;font-weight:500;line-height:.95;color:var(--b,#5AA2F0)">{{ kpi.fc }}</span><span style="color:var(--b,#5AA2F0);font-size:14px">ТС</span></div>
+        <div style="display:flex;flex-direction:column;gap:2px;font-size:12px"><span style="color:var(--r,#E5574F)">▲ {{ kpi.hi }} высокий</span><span style="color:var(--y,#E0B040)">◆ {{ kpi.mid }} риск</span></div>
+        <div style="flex:1"></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:12px;color:var(--t2,#A0A8B3)"><span>ближайшая</span><span style="color:var(--tx,#E6E8EB);font-weight:500">{{ kpi.first }}</span></div>
+      </div>
+    </div>
+    <div style="padding:12px 18px;border-right:1px solid var(--ln,#232830);display:flex;flex-direction:column;gap:6px;min-width:0">
+      <div style="font-size:12px;color:var(--t2,#A0A8B3)">Precision алертов</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:500;line-height:1;color:{{ kvCol }}">{{ kpi.inc }}</div>
+      <div style="font-size:12px;color:var(--t3,#6E7682);overflow:hidden;text-overflow:ellipsis">{{ kpi.incSub }}</div>
+    </div>
+    <div style="padding:12px 18px;display:flex;flex-direction:column;gap:6px;min-width:0">
+      <div style="font-size:12px;color:var(--t2,#A0A8B3)">Точность прогноза · MAE</div>
+      <div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:500;line-height:1">{{ kpi.mae }}</span><span style="color:var(--t2,#A0A8B3)">мин</span></div>
+      <div style="font-size:12px;color:var(--t3,#6E7682)">{{ kpi.evaluated }} оценённых прогнозов · development replay</div>
+    </div>
+  </div>
+
+  <div style="flex:1;min-height:600px;display:grid;grid-template-columns:minmax(0,1fr) 420px">
+    <div data-screen-label="Карта" style="display:flex;flex-direction:column;min-height:0;min-width:0">
+      <div style="flex:none;display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--ln,#232830);white-space:nowrap;overflow:hidden">
+        <input value="{{ q }}" onChange="{{ onQ }}" placeholder="Поиск: маршрут или борт" style="flex:0 1 220px;min-width:120px;height:30px;padding:0 10px;border-radius:5px;border:1px solid var(--ln2,#313843);background:var(--p1,#111418);color:var(--tx,#E6E8EB);outline:none;font-family:'IBM Plex Mono',monospace;font-size:12px">
+        <div style="flex:none;display:flex;border:1px solid var(--ln,#232830);border-radius:5px;padding:2px;gap:2px">
+          <sc-for list="{{ typeChips }}" as="c" hint-placeholder-count="4">
+            <button onClick="{{ c.onClick }}" style="height:24px;padding:0 10px;border:none;border-radius:3px;background:{{ c.bg }};color:{{ c.col }};cursor:pointer;font-size:12px;white-space:nowrap">{{ c.label }}</button>
+          </sc-for>
+        </div>
+        <div style="flex:none;display:flex;border:1px solid var(--ln,#232830);border-radius:5px;padding:2px;gap:2px">
+          <sc-for list="{{ riskChips }}" as="c" hint-placeholder-count="3">
+            <button onClick="{{ c.onClick }}" style="height:24px;padding:0 10px;border:none;border-radius:3px;background:{{ c.bg }};color:{{ c.col }};cursor:pointer;font-size:12px;white-space:nowrap">{{ c.label }}</button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="flex:1;position:relative;min-height:320px;background:var(--p1,#111418);overflow:hidden">
+        <sc-if value="{{ isSchema }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;inset:0">{{ mapEl }}</div></sc-if>
+
+      </div>
+      <div style="flex:none;border-top:1px solid var(--ln,#232830);padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:baseline;gap:10px;white-space:nowrap"><span style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t2,#A0A8B3)">Топ проблемных участков</span><span style="font-size:12px;color:var(--t3,#6E7682)">срабатывания за сегодня · клик — показать на схеме</span></div>
+        <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px">
+          <sc-for list="{{ topSegs }}" as="sg" hint-placeholder-count="5">
+            <button onClick="{{ sg.onClick }}" title="{{ sg.full }}" style="text-align:left;padding:9px 11px;border-radius:6px;border:1px solid {{ sg.bd }};background:{{ sg.bg }};color:var(--tx,#E6E8EB);cursor:pointer;display:flex;flex-direction:column;gap:5px;min-width:0" style-hover="border-color:var(--t3,#6E7682)">
+              <div style="display:flex;align-items:center;gap:8px;width:100%;min-width:0">
+                <span style="flex:none;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:12px;padding:0 5px;border:1px solid var(--ln2,#313843);border-radius:3px">{{ sg.route }}</span>
+                <span style="flex:1"></span>
+                <span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:15px;color:{{ sg.col }}">{{ sg.glyph }} {{ sg.n }}</span>
+              </div>
+              <span style="width:100%;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sg.seg }}</span>
+              <span style="width:100%;font-size:11.5px;color:var(--t3,#6E7682);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sg.cause }}</span>
+              <div style="width:100%;display:flex;align-items:flex-end;gap:6px">{{ sg.spark }}<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--t3,#6E7682);white-space:nowrap">06–18</span></div>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <aside data-screen-label="Лента алертов" style="width:420px;border-left:1px solid var(--ln,#232830);background:var(--p1,#111418);display:flex;flex-direction:column;min-height:0">
+      <div style="flex:none;padding:10px 14px;border-bottom:1px solid var(--ln,#232830);display:flex;flex-direction:column;gap:4px;white-space:nowrap">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t2,#A0A8B3)">Алерты</span>
+          <span style="display:flex;align-items:baseline;gap:6px;padding:2px 8px;border-radius:4px;background:var(--bs,rgba(90,162,240,.13));color:var(--b,#5AA2F0);font-size:12px">ETA · следующая остановка <b style="font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:600">{{ kpi.fc }} ТС</b></span>
+          <div style="flex:1"></div>
+          <span style="font-size:12px;color:var(--t3,#6E7682)">{{ shownLabel }}</span>
+        </div>
+        <span style="font-size:12px;color:var(--t3,#6E7682)">сортировка: риск → ожидаемое прибытие</span>
+      </div>
+      <sc-if value="{{ feedEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px;text-align:center">
+          <div style="width:56px;height:56px;border-radius:50%;border:1.5px solid var(--g,#3FB97A);display:grid;place-items:center;color:var(--g,#3FB97A);font-size:24px">✓</div>
+          <div style="font-size:18px;font-weight:600">Нет ETA с опозданием больше 2 минут</div>
+          <div style="font-size:13px;color:var(--t2,#A0A8B3);line-height:1.5;max-width:300px;text-wrap:pretty">Оценка появляется после привязки принятой GPS-позиции к плану и получения текущего отклонения.</div>
+        </div>
+      </sc-if>
+      <div style="flex:1;overflow:auto;min-height:0">
+        <sc-for list="{{ alerts }}" as="a" hint-placeholder-count="6">
+          <div onClick="{{ a.open }}" style="padding:12px 14px;border-bottom:1px solid var(--ln,#232830);background:{{ a.bg }};box-shadow:{{ a.ring }};cursor:pointer;display:flex;flex-direction:column;gap:8px" style-hover="background:var(--p2,#181C22)">
+            <div style="display:flex;align-items:center;gap:8px;font-size:12px;white-space:nowrap;min-width:0">
+              <span style="color:{{ a.col }};font-weight:600;letter-spacing:.04em;font-size:11px;text-transform:uppercase">{{ a.glyph }} {{ a.riskLabel }}</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:12px;padding:0 6px;border:1px solid var(--ln2,#313843);border-radius:3px">{{ a.route }}</span>
+              <span style="color:var(--t2,#A0A8B3);overflow:hidden;text-overflow:ellipsis;min-width:0">{{ a.typeLabel }} · <span style="font-family:'IBM Plex Mono',monospace;color:var(--tx,#E6E8EB)">{{ a.bort }}</span></span>
+              <div style="flex:1"></div>
+              <span style="flex:none;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--t2,#A0A8B3)">{{ a.probTxt }}</span>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:12px;white-space:nowrap">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:600;line-height:1;color:{{ a.col }}">{{ a.lateTxt }}</span>
+              <div style="flex:1"></div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+                <span style="font-size:15px;font-weight:500;color:var(--tx,#E6E8EB)">{{ a.cdTxt }}</span>
+                <span style="font-size:11px;color:var(--t3,#6E7682)">{{ a.cdSub }}</span>
+              </div>
+            </div>
+            <div style="font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-wrap:pretty">{{ a.reason }}</div>
+            <div style="display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--t3,#6E7682);white-space:nowrap;min-width:0">
+              <span style="overflow:hidden;text-overflow:ellipsis;min-width:0">{{ a.issued }}</span>
+              <sc-if value="{{ a.hist }}" hint-placeholder-val="{{ false }}"><span style="margin-left:auto;flex:none;font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:1px 5px;border:1px solid var(--y,#E0B040);color:var(--y,#E0B040);border-radius:3px">по истории</span></sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </aside>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showRoute }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="План ТС" style="flex:1;min-height:0;display:flex;flex-direction:column">
+  <div style="flex:none;display:flex;align-items:center;gap:18px;padding:10px 16px;border-bottom:1px solid var(--ln,#232830);background:var(--p1,#111418);white-space:nowrap;overflow:hidden">
+    <button onClick="{{ goOverview }}" style="flex:none;height:30px;padding:0 10px;border:1px solid var(--ln2,#313843);border-radius:5px;background:transparent;color:var(--t2,#A0A8B3);cursor:pointer;font-size:12px">← Обзор сети</button>
+    <span style="flex:none;font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:20px;padding:2px 10px;border:1px solid var(--ln2,#313843);border-radius:4px">{{ routeSelector }}</span>
+    <div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis">{{ routeLabel }}</span><span style="font-size:12px;color:var(--t3,#6E7682)">{{ routeDescription }}</span></div>
+    <div style="flex:1"></div>
+    <sc-for list="{{ routeStats }}" as="rs" hint-placeholder-count="3">
+      <div style="flex:none;display:flex;flex-direction:column;gap:2px;padding-left:16px;border-left:1px solid var(--ln,#232830)"><span style="font-size:11px;color:var(--t3,#6E7682)">{{ rs.l }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:16px;color:{{ rs.col }}">{{ rs.v }}</span></div>
+    </sc-for>
+  </div>
+  <div style="flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 420px">
+    <div style="overflow:auto;padding:12px;display:flex;flex-direction:column;gap:12px;min-width:0">
+      <div style="padding:14px 16px;border:1px solid var(--ln);border-radius:6px;background:var(--p1);color:var(--t2);line-height:1.5">План одного ТС. Справочник маршрутов и направлений не предоставлен; интервалы между соседними ТС и пассажиропоток неизвестны. Геометрия соединяет плановые точки прямыми и не описывает дорожную сеть.</div>
+      <div style="flex:none;border:1px solid var(--ln,#232830);border-radius:6px;background:var(--p1,#111418)">
+        <div style="display:flex;align-items:center;gap:14px;padding:10px 14px 0;white-space:nowrap">
+          <span style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t2,#A0A8B3)">Где сейчас машины</span>
+          <span style="font-size:12px;color:var(--t3,#6E7682)">геометрия плана · интервалы неизвестны</span>
+        </div>
+        <div style="padding:4px 14px 10px;border-bottom:1px solid var(--ln,#232830);font-size:12.5px;color:var(--t2,#A0A8B3);line-height:1.4;text-wrap:pretty">Каждый значок — машина на маршруте, числа между ними — интервал в минутах. <span style="color:var(--r,#E5574F)">▲ Красным</span> — слишком большой разрыв, <span style="color:var(--y,#E0B040)">◆ жёлтым</span> — машины идут пачкой.</div>
+        <div style="padding:6px 8px 4px">{{ schemaEl }}</div>
+      </div>
+      <div style="flex:none;border:1px solid var(--ln,#232830);border-radius:6px;background:var(--p1,#111418)">
+        <div style="display:flex;align-items:center;gap:16px;padding:10px 14px;border-bottom:1px solid var(--ln,#232830);white-space:nowrap;overflow:hidden">
+          <span style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t2,#A0A8B3)">Кто и насколько опоздает</span>
+          <span style="font-size:12px;color:var(--t3,#6E7682)">график прибытия · целевые события модели</span>
+          <div style="flex:1"></div>
+          <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2,#A0A8B3)"><span style="width:20px;border-top:1.5px dashed var(--t3,#6E7682)"></span>план</span>
+          <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2,#A0A8B3)"><span style="width:20px;height:2px;background:var(--tx,#E6E8EB)"></span>факт</span>
+          <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--t2,#A0A8B3)"><span style="width:20px;height:8px;background:var(--bs,rgba(90,162,240,.13));border-top:2px solid var(--b,#5AA2F0)"></span>точечный прогноз</span>
+          <sc-if value="{{ showReserve }}" hint-placeholder-val="{{ false }}"><span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--b,#5AA2F0)"><span style="width:20px;border-top:2px dashed var(--b,#5AA2F0)"></span>резерв (what-if)</span></sc-if>
+        </div>
+        <div style="padding:8px 14px 0;font-size:12.5px;color:var(--t2,#A0A8B3);line-height:1.4;text-wrap:pretty">По горизонтали — время, по вертикали — события плана. <span style="color:var(--b,#5AA2F0)">Синие точки</span> — исходные прогнозы Optuna v2 для явно заданных событий; они не выдаются за ETA следующей остановки.</div>
+        <div style="padding:6px 8px 4px">{{ chartEl }}</div>
+      </div>
+      <div style="flex:none;border:1px solid var(--ln,#232830);border-radius:6px;background:var(--p1,#111418)">
+        <div style="display:flex;align-items:center;gap:14px;padding:10px 14px;border-bottom:1px solid var(--ln,#232830);white-space:nowrap">
+          <span style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t2,#A0A8B3)">ТС выбранного плана</span>
+          <span style="font-size:12px;color:var(--t3,#6E7682)">{{ tableHint }}</span>
+          <div style="flex:1"></div>
+          <button onClick="{{ toggleRows }}" style="height:26px;padding:0 10px;border-radius:5px;border:1px solid var(--ln2,#313843);background:transparent;color:var(--t2,#A0A8B3);cursor:pointer;font-size:12px">{{ rowsLabel }}</button>
+        </div>
+        <div style="display:grid;grid-template-columns:64px minmax(150px,1.5fr) minmax(92px,.8fr) minmax(104px,.9fr) minmax(88px,.7fr) 64px 78px minmax(104px,.8fr);column-gap:14px;padding:8px 14px;font-size:11px;color:var(--t3,#6E7682);border-bottom:1px solid var(--ln,#232830);white-space:nowrap">
+          <span>Борт</span><span>Следующая остановка</span><span>Отклонение</span><span style="color:var(--b,#5AA2F0)">ETA следующей</span><span>Ср. скорость</span><span>Простой</span><span>Двери</span><span>Риск</span>
+        </div>
+        <sc-for list="{{ vRows }}" as="v" hint-placeholder-count="5">
+          <div onClick="{{ v.open }}" style="display:grid;grid-template-columns:64px minmax(150px,1.5fr) minmax(92px,.8fr) minmax(104px,.9fr) minmax(88px,.7fr) 64px 78px minmax(104px,.8fr);column-gap:14px;padding:8px 14px;align-items:center;border-bottom:1px solid var(--ln,#232830);cursor:{{ v.cur }};font-variant-numeric:tabular-nums;white-space:nowrap" style-hover="background:var(--p2,#181C22)">
+            <span style="font-family:'IBM Plex Mono',monospace;font-weight:500">{{ v.bort }}</span>
+            <span title="{{ v.whereFull }}" style="overflow:hidden;text-overflow:ellipsis;min-width:0"><span style="color:var(--t3,#6E7682);font-family:'IBM Plex Mono',monospace">{{ v.arrow }}</span> {{ v.where }}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;color:{{ v.devCol }}">{{ v.dev }}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;color:{{ v.fcCol }}">{{ v.fc }}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;color:{{ v.spdCol }}">{{ v.spd }}</span>
+            <span style="font-family:'IBM Plex Mono',monospace;color:var(--t2,#A0A8B3)">{{ v.idle }}</span>
+            <span style="color:var(--t2,#A0A8B3)">{{ v.doors }}</span>
+            <span style="color:{{ v.col }};font-size:12px;font-weight:500">{{ v.glyph }} {{ v.riskLabel }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <aside data-screen-label="What-if" style="width:420px;border-left:1px solid var(--ln,#232830);background:var(--p1,#111418);display:flex;flex-direction:column;min-height:0">
+      <div style="flex:none;padding:12px 16px;border-bottom:1px solid var(--ln,#232830);display:flex;align-items:baseline;gap:10px;white-space:nowrap">
+        <span style="font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--t2,#A0A8B3)">What-if анализ</span>
+        <span style="font-size:12px;color:var(--t3,#6E7682)">что будет, если…</span>
+      </div>
+      <div style="flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:12.5px;color:var(--t2,#A0A8B3);line-height:1.4;text-wrap:pretty">{{ scenarioNotes }}</span>
+          <sc-for list="{{ wiOpts }}" as="o" hint-placeholder-count="3">
+            <button onClick="{{ o.onClick }}" style="display:grid;grid-template-columns:16px minmax(0,1fr);gap:2px 10px;text-align:left;padding:10px 12px;border-radius:6px;border:1px solid {{ o.bd }};background:{{ o.bg }};color:var(--tx,#E6E8EB);cursor:pointer">
+              <span style="width:14px;height:14px;border-radius:50%;border:1.5px solid {{ o.bd }};display:grid;place-items:center;margin-top:2px"><span style="width:6px;height:6px;border-radius:50%;background:{{ o.dot }}"></span></span>
+              <span style="font-size:13px;font-weight:500;text-wrap:pretty">{{ o.label }}</span>
+              <span></span>
+              <span style="font-size:12px;color:var(--t2,#A0A8B3);text-wrap:pretty">{{ o.sub }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <sc-if value="{{ showTimes }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:8px;white-space:nowrap">
+            <span style="font-size:12px;color:var(--t2,#A0A8B3);margin-right:4px">Выпуск в</span>
+            <sc-for list="{{ wiTimes }}" as="tm" hint-placeholder-count="3">
+              <button onClick="{{ tm.onClick }}" style="height:28px;padding:0 10px;border-radius:5px;border:1px solid {{ tm.bd }};background:{{ tm.bg }};color:var(--tx,#E6E8EB);font-family:'IBM Plex Mono',monospace;font-size:12px;cursor:pointer">{{ tm.label }}</button>
+            </sc-for>
+          </div>
+        </sc-if>
+        <div style="display:flex;flex-direction:column;border-top:1px solid var(--ln,#232830)">
+          <sc-for list="{{ wiRows }}" as="w" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:4px;padding:10px 0;border-bottom:1px solid var(--ln,#232830)">
+              <span style="font-size:12px;color:var(--t2,#A0A8B3)">{{ w.l }}</span>
+              <div style="display:flex;align-items:baseline;gap:10px;white-space:nowrap">
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--t3,#6E7682)">{{ w.b }}</span>
+                <span style="color:var(--t3,#6E7682)">→</span>
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:500">{{ w.a }}</span>
+                <div style="flex:1"></div>
+                <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;padding:2px 7px;border-radius:3px;background:var(--gs,rgba(63,185,122,.13));color:var(--g,#3FB97A)">{{ w.d }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font-size:12px;color:var(--t2,#A0A8B3)">Интервалы, мин</span>
+          <div style="display:grid;grid-template-columns:44px minmax(0,1fr);gap:6px 8px;align-items:center">
+            <span style="font-size:11px;color:var(--t3,#6E7682)">до</span>
+            <div style="display:flex;gap:2px">
+              <sc-for list="{{ wiBefore }}" as="iv" hint-placeholder-count="4"><div style="flex:{{ iv.w }} 1 0;height:22px;border-radius:3px;background:{{ iv.bg }};color:{{ iv.col }};font-family:'IBM Plex Mono',monospace;font-size:11px;display:grid;place-items:center;overflow:hidden">{{ iv.txt }}</div></sc-for>
+            </div>
+            <span style="font-size:11px;color:var(--b,#5AA2F0)">после</span>
+            <div style="display:flex;gap:2px">
+              <sc-for list="{{ wiAfter }}" as="iv" hint-placeholder-count="5"><div style="flex:{{ iv.w }} 1 0;height:22px;border-radius:3px;background:{{ iv.bg }};color:{{ iv.col }};font-family:'IBM Plex Mono',monospace;font-size:11px;display:grid;place-items:center;overflow:hidden">{{ iv.txt }}</div></sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="flex:none;padding:12px 16px;border-top:1px solid var(--ln,#232830);display:flex;gap:8px;white-space:nowrap">
+        <button onClick="{{ applyWi }}" style="flex:1;min-width:0;height:36px;border-radius:5px;border:1px solid var(--b,#5AA2F0);background:var(--b,#5AA2F0);color:var(--ink,#0B0D10);font-weight:600;cursor:pointer">{{ applyLabel }}</button>
+        <button onClick="{{ resetWi }}" style="flex:none;height:36px;padding:0 14px;border-radius:5px;border:1px solid var(--ln2,#313843);background:transparent;color:var(--t2,#A0A8B3);cursor:pointer">Сбросить</button>
+      </div>
+    </aside>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+<aside data-screen-label="Карточка инцидента" style="position:absolute;top:48px;right:0;bottom:0;width:480px;max-width:92%;background:var(--p1,#111418);border-left:1px solid var(--ln2,#313843);display:flex;flex-direction:column;z-index:20;box-shadow:-16px 0 40px rgba(0,0,0,.28)">
+  <div style="flex:none;display:flex;align-items:center;gap:12px;padding:12px 16px 12px 18px;border-bottom:1px solid var(--ln,#232830);white-space:nowrap">
+    <span style="font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:18px;padding:1px 9px;border:1px solid var(--ln2,#313843);border-radius:4px">{{ d.route }}</span>
+    <div style="display:flex;flex-direction:column;gap:1px;min-width:0"><span style="font-size:15px;font-weight:600">Борт <span style="font-family:'IBM Plex Mono',monospace">{{ d.bort }}</span></span><span style="font-size:12px;color:var(--t3,#6E7682)">{{ d.typeLabel }} · {{ d.district }}</span></div>
+    <span style="font-size:12px;font-weight:600;padding:3px 8px;border-radius:3px;background:{{ d.soft }};color:{{ d.col }}">{{ d.glyph }} {{ d.riskLabel }} риск</span>
+    <div style="flex:1"></div>
+    <sc-if value="{{ stale }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:1px 5px;border:1px solid var(--y,#E0B040);color:var(--y,#E0B040);border-radius:3px">по истории</span></sc-if>
+    <button onClick="{{ closeDrawer }}" style="flex:none;width:28px;height:28px;border-radius:5px;border:1px solid var(--ln2,#313843);background:transparent;color:var(--t2,#A0A8B3);cursor:pointer;font-size:15px">×</button>
+  </div>
+  <div style="flex:1;overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:16px">
+    <div style="display:grid;grid-template-columns:1fr 1.15fr;border:1px solid var(--ln,#232830);border-radius:6px;white-space:nowrap">
+      <div style="padding:14px;border-right:1px solid var(--ln,#232830);display:flex;flex-direction:column;gap:8px">
+        <span style="font-size:12px;color:var(--t2,#A0A8B3)">Вероятность · нет оценки</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:44px;font-weight:500;line-height:.9;color:{{ d.col }}">{{ d.probTxt }}</span>
+      </div>
+      <div style="padding:14px;display:flex;flex-direction:column;gap:8px">
+        <span style="font-size:12px;color:var(--t2,#A0A8B3)">Следующая остановка · опоздание</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:32px;font-weight:600;line-height:.95;color:{{ d.col }}">{{ d.lateTxt }}</span>
+        <span style="font-size:12px;color:var(--t2,#A0A8B3)">ожидаемое прибытие <span style="font-family:'IBM Plex Mono',monospace;color:var(--tx,#E6E8EB)">{{ d.at }}</span></span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:5px;background:var(--bs,rgba(90,162,240,.13));color:var(--b,#5AA2F0);font-size:12.5px;white-space:nowrap">
+      <span style="font-weight:600">{{ d.infoTitle }}</span><span style="color:var(--t2,#A0A8B3)">· {{ d.infoSub }}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <span style="font-size:15px;font-weight:500;line-height:1.4;text-wrap:pretty">{{ d.reason }}</span>
+      <span style="font-size:12.5px;line-height:1.45;color:var(--t2,#A0A8B3);text-wrap:pretty">Основание: {{ d.ev }}</span>
+    </div>
+    <div style="border:1px solid var(--ln,#232830);border-radius:6px;background:var(--bg,#0B0D10);display:flex;flex-direction:column">
+      <div style="padding:8px 12px 0;display:flex;justify-content:space-between;gap:10px;font-size:12px;white-space:nowrap"><span style="color:var(--t2,#A0A8B3)">Участок маршрута</span><span style="color:var(--t3,#6E7682);overflow:hidden;text-overflow:ellipsis;min-width:0">{{ d.seg }}</span></div>
+      {{ d.segMap }}
+      <div style="border-top:1px solid var(--ln,#232830);padding:8px 12px 0;display:flex;justify-content:space-between;gap:10px;font-size:12px;white-space:nowrap"><span style="color:var(--t2,#A0A8B3)">Ограничения прогноза</span><span style="color:{{ d.col }};overflow:hidden;text-overflow:ellipsis;min-width:0">{{ d.patLabel }}</span></div>
+      {{ d.chartEl }}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span style="font-size:12px;color:var(--t2,#A0A8B3)">Рекомендации</span>
+      <button onClick="{{ d.rec0.onClick }}" style="display:flex;flex-direction:column;gap:4px;text-align:left;padding:12px;border-radius:6px;border:1px solid {{ d.rec0.bd }};background:{{ d.rec0.bg }};color:var(--tx,#E6E8EB);cursor:pointer">
+        <span style="display:flex;justify-content:space-between;gap:10px;white-space:nowrap"><span style="font-size:14px;font-weight:600">{{ d.rec0.title }}</span><span style="font-size:12px;color:{{ d.rec0.stCol }}">{{ d.rec0.status }}</span></span>
+        <span style="font-size:12px;color:var(--t2,#A0A8B3);text-wrap:pretty">{{ d.rec0.effect }}</span>
+      </button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <sc-for list="{{ d.recRest }}" as="rc" hint-placeholder-count="2">
+          <button onClick="{{ rc.onClick }}" title="{{ rc.effect }}" style="height:36px;padding:0 10px;border-radius:5px;border:1px solid var(--ln2,#313843);background:transparent;color:{{ rc.col }};cursor:pointer;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" style-hover="border-color:var(--t3,#6E7682)">{{ rc.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <span style="font-size:13px;line-height:1.4;text-wrap:pretty">{{ d.histText }}</span>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">
+        <sc-for list="{{ d.days }}" as="dy" hint-placeholder-count="7">
+          <div title="{{ dy.title }}" style="display:flex;flex-direction:column;align-items:center;gap:3px"><div style="width:100%;height:14px;border-radius:2px;background:{{ dy.bg }};border:1px solid {{ dy.bd }}"></div><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--t3,#6E7682)">{{ dy.lab }}</span></div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  <div style="flex:none;padding:12px 18px;border-top:1px solid var(--ln,#232830);display:flex;gap:8px;align-items:center;white-space:nowrap">
+    <button onClick="{{ markFalse }}" style="height:34px;padding:0 12px;border-radius:5px;border:1px solid var(--ln2,#313843);background:transparent;color:var(--t2,#A0A8B3);cursor:pointer">Закрыть карточку</button>
+    <div style="flex:1"></div>
+    <sc-if value="{{ d.canRoute }}" hint-placeholder-val="{{ false }}"><button onClick="{{ openWhatIf }}" style="height:34px;padding:0 14px;border-radius:5px;border:1px solid var(--b,#5AA2F0);background:transparent;color:var(--b,#5AA2F0);cursor:pointer;font-weight:500">Открыть what-if →</button></sc-if>
+  </div>
+</aside>
+</sc-if>
+
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;top:60px;left:50%;transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:12px;padding:10px 12px 10px 16px;border-radius:6px;border:1px solid var(--g,#3FB97A);background:var(--p1,#111418);box-shadow:0 8px 24px rgba(0,0,0,.25);white-space:nowrap">
+    <span style="width:20px;height:20px;border-radius:50%;background:var(--g,#3FB97A);color:var(--ink,#0B0D10);display:grid;place-items:center;font-size:12px;font-weight:700">✓</span>
+    <span style="font-weight:600">{{ toast.title }}</span>
+    <span style="color:var(--t2,#A0A8B3)">{{ toast.text }}</span>
+    <button onClick="{{ closeToast }}" style="width:24px;height:24px;border:none;background:transparent;color:var(--t3,#6E7682);cursor:pointer;font-size:14px">×</button>
+  </div>
+</sc-if>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+// Claude Design v3 presentation adapter. All operational data comes from backend.
+const h = React.createElement;
+const DARK = {bg:'#0B0D10',p1:'#111418',p2:'#181C22',ln:'#232830',ln2:'#313843',tx:'#E6E8EB',t2:'#A0A8B3',t3:'#6E7682',g:'#3FB97A',y:'#E0B040',r:'#E5574F',b:'#5AA2F0',gs:'rgba(63,185,122,.13)',ys:'rgba(224,176,64,.14)',rs:'rgba(229,87,79,.15)',bs:'rgba(90,162,240,.13)',ink:'#0B0D10'};
+const LIGHT = {...DARK,bg:'#F2F3F5',p1:'#FFFFFF',p2:'#F4F5F7',ln:'#E1E4E8',ln2:'#C9CED5',tx:'#14171C',t2:'#48505A',t3:'#737B86',ink:'#FFFFFF'};
+const fmt = (x,n=1) => x == null ? '—' : Number(x).toLocaleString('ru-RU',{maximumFractionDigits:n});
+const hm = t => t ? t.slice(11,19) : '—';
+// UTC parsing is only a numeric axis encoding of naive dataset strings, not a timezone claim.
+const sec = t => t ? Date.parse(t+'Z')/1000 : 0;
+const RISK = {ok:['В графике','●','g'],risk:['Риск','◆','y'],high:['Высокий','▲','r']};
+
+// OpenLayers instance survives stream updates: live positions never reset the user's camera.
+class DispatchMap extends React.Component {
+  state={tileError:false,showPlans:true};
+  componentDidMount() {
+    const ol=window.ol;
+    this.tiles=new ol.source.OSM({maxZoom:19});
+    this.lines=new ol.source.Vector();this.trails=new ol.source.Vector();
+    this.map=new ol.Map({target:this.node,controls:[new ol.control.Attribution({collapsible:false}),new ol.control.ScaleLine({units:'metric'})],
+      layers:[new ol.layer.Tile({source:this.tiles,className:'street-tiles'}),new ol.layer.Vector({source:this.lines}),new ol.layer.Vector({source:this.trails})],
+      view:new ol.View({center:ol.proj.fromLonLat([37.60,55.72]),zoom:11,minZoom:8,maxZoom:19})});
+    this.tiles.on('tileloaderror',()=>this.setState({tileError:true}));
+    this.tiles.on('tileloadend',()=>{if(this.state.tileError)this.setState({tileError:false})});
+    this.markerById=new Map();
+    this.tooltip=document.createElement('div');this.tooltip.className='map-tooltip';this.tooltip.hidden=true;
+    this.tooltipOverlay=new ol.Overlay({element:this.tooltip,offset:[12,12],stopEvent:false});this.map.addOverlay(this.tooltipOverlay);
+    this.map.on('pointermove',event=>{
+      const feature=event.dragging?null:this.map.forEachFeatureAtPixel(event.pixel,f=>f,{hitTolerance:5});
+      this.tooltip.hidden=!feature;this.node.style.cursor=feature?'pointer':'';
+      if(feature){this.tooltip.textContent=feature.get('label');this.tooltipOverlay.setPosition(event.coordinate);}
+    });
+    this.map.on('singleclick',event=>{
+      const feature=this.map.forEachFeatureAtPixel(event.pixel,f=>f,{hitTolerance:5});
+      if(feature?.get('routeId'))this.props.onRoute(feature.get('routeId'));
+    });
+    this.observer=new ResizeObserver(()=>this.map?.updateSize());this.observer.observe(this.node);
+    this.props.onReady(this.map);this.updateLayers(true);
+    this.map.getView().on('change:resolution',()=>this.updateLabels());
+    this.resizeTimer=setTimeout(()=>{this.map.updateSize();this.fit()},150);
+  }
+  componentWillUnmount(){clearTimeout(this.resizeTimer);this.observer?.disconnect();this.map?.dispose();this.map=null;}
+  project(lat,lon){return window.ol.proj.fromLonLat([lon,lat]);}
+  addLine(source,points,{color,width,opacity=1,dash,label,routeId}){
+    const ol=window.ol,rgba=ol.color.asArray(color).slice();rgba[3]=opacity;
+    const feature=new ol.Feature({geometry:new ol.geom.LineString(points),label,routeId});
+    feature.setStyle(new ol.style.Style({stroke:new ol.style.Stroke({color:rgba,width,lineDash:dash})}));source.addFeature(feature);
+  }
+  componentDidUpdate(prev,oldState){
+    if(!this.map)return;
+    this.updateLayers(prev.plans!==this.props.plans||prev.route!==this.props.route||oldState.showPlans!==this.state.showPlans);
+    if(prev.route!==this.props.route)this.fit();
+    if(prev.focus!==this.props.focus&&this.props.focus)this.fit(this.props.focus.route);
+  }
+  positions(route=this.props.route){
+    const plans=Object.values(this.props.plans).filter(p=>!route||p.route_id===route);
+    return plans.flatMap(p=>p.stops).filter(p=>Number.isFinite(p.lat)&&Number.isFinite(p.lon)).map(p=>[p.lat,p.lon]);
+  }
+  fit(route=this.props.route){
+    const points=route?this.positions(route):this.props.vehicles.filter(v=>v.lat!=null&&v.lon!=null).map(v=>[v.lat,v.lon]);
+    const pts=points.length?points:this.positions(route);
+    if(pts.length)this.map.getView().fit(window.ol.extent.boundingExtent(pts.map(p=>this.project(p[0],p[1]))),{padding:[80,65,75,65],maxZoom:14,duration:0});
+  }
+  updateLabels(){
+    const detailed=this.map.getView().getZoom()>=12||!!this.props.route;
+    this.markerById.forEach(({element,v})=>element.classList.toggle('show-label',detailed||v.next_stop_risk_level!=='ok'));
+  }
+  updateLayers(redraw){
+    const ol=window.ol,vs=this.props.vehicles,colors={ok:'#38b886',risk:'#ffc34a',high:'#ff625c'};
+    const signature=vs.map(v=>`${v.vehicle_id}:${v.risk_level}:${v.segment_id}`).join('|');
+    if(redraw||signature!==this.signature){
+      this.signature=signature;this.lines.clear();
+      if(this.state.showPlans)Object.values(this.props.plans).filter(p=>!this.props.route||p.route_id===this.props.route).forEach(plan=>{
+        const v=vs.find(v=>v.route_id===plan.route_id),active=!!this.props.route;
+        const edges=new Set();
+        const activeIndex=plan.stops.findIndex((p,i)=>i>0&&v?.segment_id===`${plan.stops[i-1].event_id}:${p.event_id}`);
+        const activeEdge=activeIndex>0?[plan.stops[activeIndex-1],plan.stops[activeIndex]].map(p=>`${p.lat},${p.lon}`).sort().join(':'):null;
+        for(let i=1;i<plan.stops.length;i++){
+          const a=plan.stops[i-1],b=plan.stops[i];
+          if(![a.lat,a.lon,b.lat,b.lon].every(Number.isFinite))continue;
+          const ka=`${a.lat},${a.lon}`,kb=`${b.lat},${b.lon}`,key=[ka,kb].sort().join(':');
+          if(ka===kb||edges.has(key))continue;edges.add(key);
+          // Full-day control-point connections; no invented road snapping.
+          const current=key===activeEdge;
+          const color=current?colors[v.risk_level]:active?'#65b7ff':'#77a9d1';
+          this.addLine(this.lines,[this.project(a.lat,a.lon),this.project(b.lat,b.lon)],{color,width:current?7:active?3:2,
+            opacity:current?.95:active?.65:.36,dash:current?undefined:[5,7],routeId:plan.route_id,
+            label:`План ТС ${plan.vehicle_ids?.[0]||plan.route_id.replace('plan-','')} · ${a.name} → ${b.name}`});
+        }
+        if(active){
+          const unique=new Set();plan.stops.forEach(p=>{const key=`${p.lat}:${p.lon}`;if(unique.has(key)||!Number.isFinite(p.lat)||!Number.isFinite(p.lon))return;unique.add(key);
+            const feature=new ol.Feature({geometry:new ol.geom.Point(this.project(p.lat,p.lon)),label:p.name,routeId:plan.route_id});
+            feature.setStyle(new ol.style.Style({image:new ol.style.Circle({radius:3,stroke:new ol.style.Stroke({color:'#b8dfff',width:1}),fill:new ol.style.Fill({color:'#24394a'})})}));
+            this.lines.addFeature(feature);
+          });
+        }
+      });
+    }
+    if(this.lastTracks!==this.props.tracks||this.lastTrackSignature!==signature){
+      this.lastTracks=this.props.tracks;this.lastTrackSignature=signature;this.trails.clear();
+      (this.props.tracks||[]).forEach(track=>{
+        const v=vs.find(v=>v.vehicle_id===track.vehicle_id);if(!v)return;
+        let part=[],previous=null;const parts=[];
+        track.points.forEach(p=>{
+          const position=this.project(p.lat,p.lon),dt=previous?sec(p.event_time)-sec(previous.event_time):0;
+          // Break display lines across outages / implausible jumps, without altering Cleaner.
+          if(previous&&(dt>120||dt<=0||ol.sphere.getDistance([p.lon,p.lat],[previous.lon,previous.lat])/dt>115/3.6)){if(part.length>1)parts.push(part);part=[];}
+          part.push(position);previous=p;
+        });if(part.length>1)parts.push(part);
+        const color=v.is_stale?'#8c9baa':v.next_stop_predicted_delay_min==null?'#71b4dd':colors[v.next_stop_risk_level];
+        parts.forEach(points=>this.addLine(this.trails,points,{color,width:this.props.route?5:3.5,opacity:.9,
+          label:`GPS-трек ТС ${track.vehicle_id} · последние 30 мин`,routeId:track.route_id}));
+      });
+    }
+    const ids=new Set();
+    vs.filter(v=>Number.isFinite(v.lat)&&Number.isFinite(v.lon)).forEach(v=>{
+      ids.add(v.vehicle_id);const color=v.is_stale?'#8c9baa':v.next_stop_predicted_delay_min==null?'#71b4dd':colors[v.next_stop_risk_level];
+      let entry=this.markerById.get(v.vehicle_id);
+      if(!entry){
+        const element=document.createElement('button');element.type='button';element.className='vehicle-marker';
+        const pin=document.createElement('span');pin.className='vehicle-pin';
+        const arrow=document.createElement('i'),glyph=document.createElement('b'),label=document.createElement('span');label.className='vehicle-label';
+        pin.append(arrow,glyph);element.append(pin,label);
+        const marker=new ol.Overlay({element,positioning:'center-center',stopEvent:true});this.map.addOverlay(marker);
+        entry={marker,element,pin,glyph,label,v};this.markerById.set(v.vehicle_id,entry);
+        element.addEventListener('click',()=>this.props.onRoute(entry.v.route_id));
+      }
+      entry.v=v;
+      entry.pin.style.setProperty('--vehicle-color',color);
+      entry.pin.style.setProperty('--heading',`${Number.isFinite(v.heading)?v.heading:0}deg`);
+      entry.element.style.opacity=v.is_stale?'.6':'1';
+      entry.glyph.textContent=['high','risk'].includes(v.next_stop_risk_level)?'!':'';
+      entry.marker.setPosition(this.project(v.lat,v.lon));
+      entry.element.parentElement.style.zIndex=v.next_stop_risk_level==='high'?'1000':'100';
+      const label=`${v.vehicle_id}${v.next_stop_eta?' · ETA '+hm(v.next_stop_eta):''}${v.next_stop_predicted_delay_min!=null?' · '+(v.next_stop_predicted_delay_min>0?'+':'')+fmt(v.next_stop_predicted_delay_min)+' мин':''}${v.is_stale?' · нет связи':''}`;
+      entry.element.setAttribute('aria-label',`ТС ${label}, следующая остановка ${v.next_stop||'не определена'}`);
+      entry.label.textContent=label;
+    });
+    this.markerById.forEach((entry,id)=>{if(!ids.has(id)){this.map.removeOverlay(entry.marker);this.markerById.delete(id)}});
+    if(!this.fitted&&vs.some(v=>v.lat!=null)){this.fit();this.fitted=true;}
+    this.updateLabels();
+  }
+  render(){return h('div',{className:`dispatch-map ${this.props.theme==='dark'?'map-dark':''}`,style:{height:this.props.route?340:'100%'}},
+    h('div',{ref:n=>this.node=n,className:'map-host','aria-label':'Карта транспорта на улицах Москвы'}),
+    h('div',{className:'map-toolbar'},h('span',{className:'map-heading'},this.props.route?'ПЛАН ДВИЖЕНИЯ':'МОСКВА · ТРАНСПОРТ'),
+      h('button',{onClick:()=>this.fit(),title:'Показать все ТС / весь выбранный план'},'⊕ Весь охват'),
+      h('button',{'aria-pressed':this.state.showPlans,onClick:()=>this.setState({showPlans:!this.state.showPlans})},this.state.showPlans?'✓ Планы':'Планы'),
+      h('button',{onClick:()=>this.map.getView().setZoom(this.map.getView().getZoom()+1),'aria-label':'Приблизить карту'},'+'),h('button',{onClick:()=>this.map.getView().setZoom(this.map.getView().getZoom()-1),'aria-label':'Отдалить карту'},'−')),
+    h('div',{className:'map-caption'},this.state.tileError?'Подложка недоступна · проверьте интернет':this.props.stale?'Нет связи · последние известные координаты':'Сплошная — GPS-трек · пунктир — план по контрольным точкам'),
+    h('div',{className:'map-key'},h('span',null,'🔵 Нет ETA'),h('span',{style:{color:'#38b886'}},'● ≤2 мин'),h('span',{style:{color:'#ffc34a'}},'● 2–5 мин'),h('span',{style:{color:'#ff625c'}},'● >5 мин'))
+  );}
+}
+
+class Component extends DCLogic {
+  state = {vehicles:{},alerts:{},summary:{},status:{},routes:[],plans:{},tracks:[],route:null,timeline:null,
+    problems:[],screen:'overview',theme:'dark',q:'',risk:'all',drawer:null,menu:false,
+    connected:false,error:null,wi:'reserve',scenario:null,zoom:1,mapFocus:null};
+
+  async api(path,body) {
+    const response = await fetch(path,body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {});
+    if(!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
+    return response.json();
+  }
+  componentDidMount() {
+    this.alive=true; this.load(); this.connect();
+    this.poll=setInterval(()=>this.refresh(),3000);
+  }
+  componentWillUnmount() {this.alive=false;clearInterval(this.poll);clearTimeout(this.retry);this.socket?.close();}
+  async load() {
+    try {
+      const routes=await this.api('/api/routes');
+      const details=await Promise.all(routes.map(r=>this.api('/api/routes/'+encodeURIComponent(r.route_id))));
+      if(!this.alive)return;
+      this.setState({routes,plans:Object.fromEntries(details.map(r=>[r.route_id,r])),route:routes[0]?.route_id});
+      this.refresh();
+    } catch(e) {if(this.alive)this.setState({error:e.message});}
+  }
+  connect() {
+    if(!this.alive)return;
+    const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws/stream`);
+    this.socket=ws;
+    ws.onopen=()=>this.setState({connected:true,error:null});
+    ws.onmessage=e=>{
+      this.receivedAt=Date.now();
+      const d=JSON.parse(e.data);
+      this.setState({connected:true});
+      if(d.type==='snapshot')this.setState({vehicles:d.vehicles,alerts:d.alerts,summary:d.summary,status:d.system_status});
+      else if(d.type==='update')this.setState(s=>{
+        const vehicles={...s.vehicles},alerts={...s.alerts};
+        d.vehicles.upsert.forEach(v=>vehicles[v.vehicle_id]=v);
+        d.vehicles.removed.forEach(id=>delete vehicles[id]);
+        d.alerts.upsert.forEach(a=>alerts[a.alert_id]=a);
+        return {vehicles,alerts,summary:d.summary,status:d.system_status};
+      });
+    };
+    ws.onclose=()=>{if(!this.alive)return;this.setState({connected:false});this.retry=setTimeout(()=>this.connect(),1500)};
+    ws.onerror=()=>ws.close();
+  }
+  async refresh() {
+    if(this.receivedAt&&Date.now()-this.receivedAt>5000)this.setState({connected:false});
+    if(this.refreshing)return;this.refreshing=true;
+    try {
+      const [p,tracks]=await Promise.all([this.api('/api/segments/problems'),this.api('/api/map/tracks')]);
+      const id=this.state.route;
+      const timeline=id ? await this.api(`/api/routes/${encodeURIComponent(id)}/timeline?direction=plan`) : null;
+      if(this.alive)this.setState(s=>({problems:p.items,tracks,...(s.route===id?{timeline}:{})}));
+    } catch(e) {if(this.alive)this.setState({error:e.message});}
+    finally {this.refreshing=false;}
+  }
+  selectRoute(id) {this.setState({route:id,screen:'route',drawer:null,scenario:null,timeline:null},()=>this.refresh());}
+  async control() {
+    try {await this.api('/api/demo/control',{action:this.state.status.stream_connected?'disconnect':'reconnect'});}
+    catch(e){this.setState({error:e.message});}
+  }
+  async scenario() {
+    try {
+      const result=await this.api('/api/whatif',{route_id:this.state.route,action:this.state.wi,minutes:2});
+      this.setState({scenario:result,error:null});
+    } catch(e){this.setState({error:e.message});}
+  }
+  map(C,onlyRoute=false) {
+    const S=this.state,route=onlyRoute?S.route:null;
+    const vehicles=Object.values(S.vehicles).filter(v=>(!route||v.route_id===route)&&
+      (!S.q||`${v.vehicle_id} ${v.route_id}`.includes(S.q))&&(S.risk==='all'||v.next_stop_risk_level===S.risk));
+    return h(DispatchMap,{vehicles,plans:S.plans,tracks:S.tracks,route,theme:S.theme,focus:S.mapFocus,stale:!S.connected||S.status.status==='degraded',
+      onReady:map=>{this.activeMap=map;},onRoute:id=>this.selectRoute(id)});
+  }
+  chart(C) {
+    const t=this.state.timeline;if(!t)return h('p',{style:{padding:20}},'Ожидание графика…');
+    const now=sec(t.virtual_time),lo=now-1800,hi=now+1800;
+    const visible=t.planned.filter(p=>sec(p.time)>=lo&&sec(p.time)<=hi);
+    if(!visible.length)return h('p',{style:{padding:20}},'В текущем часовом окне нет плановых событий.');
+    const orders=visible.map(p=>p.stop_order),bottom=Math.min(...orders),top=Math.max(...orders);
+    const X=p=>80+(sec(p.time)-lo)/(hi-lo)*800,Y=p=>260-(p.stop_order-bottom)/Math.max(1,top-bottom)*220;
+    const E=[];
+    for(let m=-30;m<=30;m+=10){const xx=80+(m+30)/60*800;E.push(h('line',{key:'g'+m,x1:xx,x2:xx,y1:20,y2:265,stroke:C.ln}),h('text',{key:'l'+m,x:xx,y:290,fill:C.t2,fontSize:12,textAnchor:'middle'},m===0?'сейчас':`${m>0?'+':''}${m} мин`));}
+    E.push(h('polyline',{key:'plan',points:visible.map(p=>`${X(p)},${Y(p)}`).join(' '),fill:'none',stroke:C.t3,strokeDasharray:'5 5'}));
+    [['actual',C.tx],['forecast',C.b]].forEach(([name,color])=>t[name].filter(p=>sec(p.time)>=lo&&sec(p.time)<=hi&&p.stop_order>=bottom&&p.stop_order<=top).forEach(p=>E.push(h('circle',{key:name+p.event_id,cx:X(p),cy:Y(p),r:5,fill:color},h('title',null,`${name} · ${hm(p.time)} · событие ${p.event_id}`)))));
+    E.push(h('text',{key:'label',x:8,y:15,fill:C.t2,fontSize:11},'Порядок события в плане'));
+    return h('svg',{viewBox:'0 0 920 310',width:'100%',role:'img','aria-label':'План, опубликованные факты и прогнозы прибытия'},E);
+  }
+  renderVals() {
+    const S=this.state,C=S.theme==='light'?LIGHT:DARK,V=k=>C[k],sum=S.summary;
+    const rootVars={height:'100vh',width:'100%',position:'relative'};Object.keys(C).forEach(k=>rootVars['--'+k]=C[k]);
+    const stale=!S.connected||S.status.status==='degraded',now=sec(S.status.virtual_time);
+    const etaAll=Object.values(S.vehicles).filter(v=>v.next_stop_predicted_delay_min>2&&v.next_stop_eta&&v.next_stop);
+    const matching=etaAll.filter(v=>(S.risk==='all'||v.next_stop_risk_level===S.risk)&&
+      (!S.q||`${v.vehicle_id} ${v.route_id} ${v.next_stop}`.toLowerCase().includes(S.q.toLowerCase())))
+      .sort((a,b)=>(a.next_stop_risk_level===b.next_stop_risk_level?0:a.next_stop_risk_level==='high'?-1:1)||sec(a.next_stop_eta)-sec(b.next_stop_eta));
+    const filtered=matching;
+    const countdown=t=>{const m=(sec(t)-now)/60;return m>0?`через ${Math.ceil(m)} мин`:'плановое время прошло'};
+    const methodLabel=m=>m==='optuna-features-v2'?'ML Optuna v2':m==='current_deviation_next_stop_eta'?'текущее отклонение':m||'нет метода';
+    const etaView=v=>{const [label,glyph,col]=RISK[v.next_stop_risk_level];const delay=v.next_stop_predicted_delay_min;return {route:v.route_id,typeLabel:'Тип ТС неизвестен',bort:v.vehicle_id,probTxt:'—',glyph,riskLabel:label,col:V(col),lateTxt:`${delay>0?'+':''}${fmt(delay)} мин`,cdTxt:`ETA ${hm(v.next_stop_eta)}`,cdSub:`план ${hm(v.next_stop_planned_time)} · ${countdown(v.next_stop_planned_time)}`,issued:`оценка ${hm(v.next_stop_prediction_issued_at)} · ${methodLabel(v.next_stop_prediction_method)}`,reason:`Следующая остановка: ${v.next_stop}`,bg:V('p1'),ring:'none',hist:v.is_stale||v.source==='historical',open:()=>this.setState({drawer:v.vehicle_id,mapFocus:{route:v.route_id,token:Date.now()}})};};
+    const route=S.plans[S.route],vs=Object.values(S.vehicles).filter(v=>v.route_id===S.route);
+    const vRows=vs.map(v=>{const [label,glyph,col]=RISK[v.next_stop_risk_level];return {bort:v.vehicle_id,where:v.next_stop||'Положение на плане неизвестно',whereFull:v.segment_name||'—',arrow:'→',dev:`${fmt(v.deviation_now_min)} мин`,devCol:V('tx'),fc:v.next_stop_eta?`${hm(v.next_stop_eta)} (${v.next_stop_predicted_delay_min>0?'+':''}${fmt(v.next_stop_predicted_delay_min)} мин)`:'—',fcCol:V(col),spd:`${fmt(v.speed_kmh)} км/ч`,spdCol:V('tx'),idle:v.dwell_sec==null?'—':`${fmt(v.dwell_sec,0)} с`,doors:'нет данных',col:V(col),glyph,riskLabel:v.is_stale?'Устарело':v.next_stop_predicted_delay_min==null?'Нет ETA':label,cur:'default',open:()=>{}};});
+    const selected=S.vehicles[S.drawer];let d={rec0:{},recRest:[],days:[]};
+    if(selected){const v=selected,av=etaView(v),isMl=v.next_stop_prediction_method==='optuna-features-v2';d={...av,soft:V(v.next_stop_risk_level==='high'?'rs':'ys'),district:'исторический replay',at:hm(v.next_stop_eta),infoTitle:`Метод: ${methodLabel(v.next_stop_prediction_method)}`,infoSub:`обновлено ${hm(v.next_stop_prediction_issued_at)}`,ev:`План ${hm(v.next_stop_planned_time)}; ETA ${hm(v.next_stop_eta)}; оценка опоздания ${v.next_stop_predicted_delay_min>0?'+':''}${fmt(v.next_stop_predicted_delay_min)} мин.`,seg:v.segment_name||'Сегмент неизвестен',segMap:null,chartEl:h('p',{style:{padding:12,color:V('t2')}},isMl?`Оценка ${methodLabel(v.next_stop_prediction_method)} целевого события совпала со следующей остановкой.`:'ETA получено как плановое время плюс последнее доступное текущее отклонение; это не ML-прогноз.'),patLabel:v.next_stop_prediction_method,rec0:{title:'Открыть план ТС',bd:V('b'),bg:V('bs'),stCol:V('b'),status:'следующая остановка',effect:v.next_stop,onClick:()=>this.selectRoute(v.route_id)},recRest:[],histText:`Источник: ${v.source}. ${v.is_stale?'Позиция устарела.':''}`,days:[],canRoute:true};}
+    const chip=(value,label)=>({label,bg:S.risk===value?V('p2'):'transparent',col:V('tx'),onClick:()=>this.setState({risk:value})});
+    const modes=[['reserve','Выпустить резерв','Опоздание текущего ТС не меняется; интервалы неизвестны'],['reduce_dwell','Сократить будущую стоянку','Условно до 2 минут; не возвращает уже прошедшее время'],['hold','Удержать ТС','Добавить 2 минуты к прибытию выбранного ТС']];
+    const scenario=S.scenario,lead=sum.mean_lead_time_min;
+    return {rootVars,clock:hm(S.status.virtual_time),dateLabel:`${(S.status.virtual_time||'').slice(0,10)} · replay ×${fmt(S.status.speed,0)}`,
+      themeLabel:S.theme==='dark'?'Светлая тема':'Тёмная тема',toggleTheme:()=>this.setState({theme:S.theme==='dark'?'light':'dark',menu:false}),toggleMenu:()=>this.setState({menu:!S.menu}),menuOpen:S.menu,menuBd:V('ln2'),roleLabel:'Демо · данные раздачи',
+      tabs:[['overview','Обзор сети'],['route','План ТС']].map(([k,label])=>({label,bd:S.screen===k?V('b'):'transparent',col:V('tx'),onClick:()=>this.setState({screen:k})})),
+      st:{dot:V(stale?'y':'g'),text:!S.connected?'Backend недоступен':S.status.replay_finished?'Replay завершён':S.status.stream_connected?'Поток онлайн':'Нет связи с NDTP',sub:`· ML ${S.status.ml_available?'Optuna v2':'fallback'}`,bd:V('ln2'),bg:'transparent'},onTele:()=>this.control(),degraded:stale,stale,retryIn:'авто',kvCol:V('tx'),
+      statusDetail:S.error||(!S.connected?'Нет WebSocket: показано последнее полученное состояние.':S.status.detail||'Ожидание подключения'),
+      showSkeleton:false,showOverview:S.screen==='overview',showRoute:S.screen==='route',skel5:[],
+      kpi:{total:sum.vehicles_total??0,fresh:sum.vehicles_fresh??0,sched:sum.on_schedule_percent==null?'—':fmt(sum.on_schedule_percent)+'%',lateNow:`${sum.late_now??0} ТС · ${sum.deviations_known??0} известных отклонений`,fc:etaAll.length,hi:etaAll.filter(v=>v.next_stop_risk_level==='high').length,mid:etaAll.filter(v=>v.next_stop_risk_level==='risk').length,first:etaAll.length?countdown([...etaAll].sort((a,b)=>sec(a.next_stop_planned_time)-sec(b.next_stop_planned_time))[0].next_stop_planned_time):'—',inc:sum.alert_precision==null?'—':fmt(sum.alert_precision*100)+'%',incSub:`lead time ${fmt(lead)} мин`,mae:fmt(sum.forecast_mae_min),evaluated:sum.evaluated_predictions??0},
+      q:S.q,onQ:e=>this.setState({q:e.target.value}),typeChips:[{label:'Тип ТС неизвестен',bg:'transparent',col:V('t2'),onClick:()=>{}}],riskChips:[chip('all','Любой риск'),chip('high','▲ >5 мин'),chip('risk','◆ >2 мин')],modeChips:[],isSchema:true,isGeo:false,frameRef:null,mapTitle:'',zoomIn:()=>this.activeMap?.getView().setZoom(this.activeMap.getView().getZoom()+1),zoomOut:()=>this.activeMap?.getView().setZoom(this.activeMap.getView().getZoom()-1),shownLabel:`${filtered.length} ТС`,mapEl:this.map(C),
+      topSegs:[...etaAll.reduce((m,v)=>{const k=v.segment_id||v.vehicle_id,o=m.get(k)||{route:v.route_id,seg:v.segment_name||v.next_stop,full:v.segment_name||v.next_stop,cause:'ETA следующей остановки >2 мин',n:0,glyph:'◆',col:V('y'),spark:null,bd:V('ln'),bg:V('p1'),onClick:()=>this.selectRoute(v.route_id)};o.n++;m.set(k,o);return m;},new Map()).values()].sort((a,b)=>b.n-a.n).slice(0,5),alerts:filtered.map(etaView),feedEmpty:filtered.length===0,
+      drawerOpen:!!selected,d,closeDrawer:()=>this.setState({drawer:null}),openWhatIf:()=>selected&&this.selectRoute(selected.route_id),markFalse:()=>this.setState({drawer:null}),goOverview:()=>this.setState({screen:'overview'}),
+      routeLabel:route?.name||'План ТС',routeDescription:route?`${route.stops_count} плановых событий · тип и маршрут неизвестны`:'Ожидание плана',
+      routeSelector:h('select',{value:S.route||'',onChange:e=>this.selectRoute(e.target.value),style:{background:V('p1'),color:V('tx'),padding:8,border:`1px solid ${V('ln2')}`,borderRadius:5}},S.routes.map(r=>h('option',{key:r.route_id,value:r.route_id},r.name))),
+      routeStats:[{l:'Интервалы',v:'нет реестра',col:V('t2')},{l:'ТС в плане',v:vs.length,col:V('tx')},{l:'ETA >2 мин',v:etaAll.filter(v=>v.route_id===S.route).length,col:V('y')}],
+      schemaEl:this.map(C,true),chartEl:this.chart(C),showReserve:false,vRows,toggleRows:()=>{},rowsLabel:`${vRows.length} ТС`,tableHint:'неизвестные измерения — прочерк',
+      wiOpts:modes.map(([k,label,sub])=>({label,sub,bd:V(S.wi===k?'b':'ln2'),bg:S.wi===k?V('bs'):'transparent',dot:S.wi===k?V('b'):'transparent',onClick:()=>this.setState({wi:k,scenario:null})})),showTimes:false,wiTimes:[],
+      wiRows:scenario?[{l:'Прогноз опоздания выбранного ТС',b:fmt(scenario.before.predicted_delay_min)+' мин',a:fmt(scenario.after.predicted_delay_min)+' мин',d:'условно'},{l:'Максимальный интервал',b:'нет данных',a:'нет данных',d:'—'}]:[],wiBefore:[],wiAfter:[],scenarioNotes:scenario?scenario.assumptions.join(' '):'Выберите действие и нажмите «Рассчитать сценарий». Это не команда транспорту.',applyLabel:'Рассчитать сценарий',applyWi:()=>this.scenario(),resetWi:()=>this.setState({scenario:null}),hasToast:!!S.error,toast:{title:'Состояние подключения',text:S.error||''},closeToast:()=>this.setState({error:null})};
+  }
+}
+
+</script>
+</body>
+</html>

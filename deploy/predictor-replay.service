@@ -1,0 +1,8 @@
+[Unit]
+Description=Restart a completed hackathon replay with fresh backend state
+After=docker.service
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/predictor
+ExecStart=/usr/bin/python3 /opt/predictor/deploy/restart_finished_replay.py
+TimeoutStartSec=180

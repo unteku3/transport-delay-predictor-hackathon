@@ -1,0 +1,76 @@
+name: predictor-dispatch
+x-runtime: &runtime
+  image: predictor-runtime:local
+  pull_policy: never
+  init: true
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+
+services:
+  ml:
+    <<: *runtime
+    # Build the shared image once; backend and emulator reuse it.
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: [python, -m, uvicorn, ml.service.app:app, --host, 0.0.0.0, --port, '8001']
+    environment:
+      MODEL_DIR: /models
+    volumes:
+      - ./ml/models/optuna_features_v2:/models:ro
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 45s
+  backend:
+    <<: *runtime
+    environment:
+      DATA_ROOT: /data
+      ML_URL: http://ml:8001
+      EMULATOR_URL: http://emulator:18080
+      NDTP_PORT: '9201'
+    volumes:
+      - ${DATA_ROOT:-.}/train:/data/train:ro
+      - ${DATA_ROOT:-.}/validate:/data/validate:ro
+      - ./cleaning/config.json:/data/cleaning/config.json:ro
+    ports:
+      - '127.0.0.1:${BACKEND_PORT:-8000}:8000'
+    depends_on:
+      ml: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  emulator:
+    <<: *runtime
+    command: [python, -m, uvicorn, backend.emulator.app:app, --host, 0.0.0.0, --port, '18080']
+    environment:
+      DATA_ROOT: /data
+      SPEED: '${SPEED:-10}'
+      REPLAY_SPLIT: '${REPLAY_SPLIT:-test}'
+      START_TIME: '${START_TIME:-}'
+      NDTP_HOST: backend
+    volumes:
+      - ${DATA_ROOT:-.}/train:/data/train:ro
+      - ${DATA_ROOT:-.}/test:/data/test:ro
+      - ${DATA_ROOT:-.}/validate:/data/validate:ro
+      - ${DATA_ROOT:-.}/labels:/data/labels:ro
+    ports:
+      - '127.0.0.1:${EMULATOR_PORT:-18080}:18080'
+    depends_on:
+      backend: {condition: service_healthy}
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    ports:
+      - '127.0.0.1:${DASHBOARD_PORT:-8080}:80'
+    depends_on:
+      backend: {condition: service_healthy}
+    restart: unless-stopped

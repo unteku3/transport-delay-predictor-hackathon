@@ -1,0 +1,97 @@
+{
+  "seed": 20260926,
+  "search_space": {
+    "family": [
+      "catboost",
+      "extratrees"
+    ],
+    "feature_set": [
+      "base",
+      "expanded"
+    ],
+    "mode": [
+      "residual",
+      "direct"
+    ],
+    "correction_weight": [
+      0.25,
+      0.5,
+      0.75,
+      1.0
+    ],
+    "cat_iterations": [
+      400,
+      600,
+      900
+    ],
+    "cat_depth": [
+      3,
+      7
+    ],
+    "cat_lr": [
+      0.015,
+      0.1
+    ],
+    "cat_l2": [
+      3.0,
+      100.0
+    ],
+    "cat_loss": [
+      "MAE",
+      "Huber:delta=80"
+    ],
+    "cat_random_strength": [
+      0.0,
+      3.0
+    ],
+    "cat_bagging_temperature": [
+      0.0,
+      2.0
+    ],
+    "extra_trees": [
+      200,
+      400
+    ],
+    "extra_min_leaf": [
+      2,
+      24
+    ],
+    "extra_max_features": [
+      0.5,
+      1.0
+    ]
+  },
+  "outer_trials": 20,
+  "final_trials": 32,
+  "validation": "4 outer vehicle-family folds; Optuna sees only 3 inner family folds in each training portion",
+  "primary": "Row-weighted MAE on original-candidate rows (copy_candidate=False)",
+  "train_policy": "All permitted original and synthetic queries; no target clipping or sample weighting",
+  "final_search": "Same fixed space, 4 family folds over all training data; inner score is selection-biased",
+  "compare": "Refit fixed CatBoost v1 on identical outer folds; do not change search after inspecting outer scores",
+  "caution": "Nested development estimate on one previously studied day and heuristic copy families; not independent new-day evaluation",
+  "preprocessing": "Median imputer for ExtraTrees fitted within each training fold; CatBoost gets NaN",
+  "feature_design": "Fixed expanded causal set before search; no IDs, raw coordinates, facts, target-derived features",
+  "reference_params": {
+    "iterations": 600,
+    "depth": 5,
+    "learning_rate": 0.04,
+    "l2_leaf_reg": 10,
+    "loss_function": "MAE",
+    "random_seed": 20260926,
+    "thread_count": 4,
+    "verbose": false,
+    "allow_writing_files": false
+  },
+  "dataset_manifest_sha256": "f2bf9829eadb433c070af67c6a13012fc6b2b5c6e3210cc56eed8a21ec34acb1",
+  "script_sha256": "e0aca470cd7123f5fe98641e7e6c8a4f7296cc85879b511fa02673f0f64422b8",
+  "feature_code_sha256": "f47548c6da79be67bda2247bcc31242ce9f7131190a731e9a5c8bd253d42c466",
+  "versions": {
+    "python": "3.13.7",
+    "optuna": "5.0.0",
+    "sklearn": "1.7.2",
+    "catboost": "1.2.8",
+    "pandas": "2.3.3",
+    "numpy": "2.2.6"
+  },
+  "optuna_docs": "https://optuna.readthedocs.io/en/stable/tutorial/10_key_features/003_efficient_optimization_algorithms.html"
+}
